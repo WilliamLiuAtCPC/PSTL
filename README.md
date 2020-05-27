@@ -1,6 +1,6 @@
 # PSTL
 
-![PSTL Framework](https://github.com/WilliamLiuAtCPC/PSTL/blob/master/imgs/framework.png)
+<img src="https://github.com/WilliamLiuAtCPC/PSTL/blob/master/imgs/framework.png" width = "800" height = "500" div align=center>
 
 This repository contains the code for the paper "Weakly Supervised Tool Localization in Surgical Images" (now submitted to IEEE Trans. on Medical Imaging).
 
