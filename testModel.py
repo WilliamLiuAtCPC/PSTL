@@ -2,6 +2,7 @@ from torch.utils import data as data_
 import os
 import torch as t
 from torch import nn
+import torchvision.models as models
 import torchvision.transforms as transforms
 from utils.config import opt
 from model import FasterRCNNVGG16
@@ -19,6 +20,58 @@ warnings.filterwarnings('ignore')
 os.environ["CUDA_VISIBLE_DEVICES"]='5'
 
 toolNameList = ["Background","Grasper","Bipolar","Hook","Scissors","Clipper","Irrigator","SpecimenBag"]
+
+def weighedMean(box_list):
+    new_box = []
+    score_list = []
+    score_sum = 0
+    #get weight
+    for i in range(len(box_list)):
+        score_list.append(box_list[i][0])
+        score_sum += box_list[i][0]
+    for i in range(len(score_list)):
+        score_list[i]/=score_sum
+    #weighed sum
+    for i in range(len(box_list[0])):
+        coordinate=0
+        for j in range(len(box_list)):
+            coordinate+=box_list[j][i]*score_list[j]
+        new_box.append(coordinate)
+#    print(new_box)
+    return new_box
+
+def fuseBoxes(words,num_box):
+    new_boxes = []
+    label_list = []
+    for i in range(num_box):
+        label_list.append(words[i*6])
+    label_list = list(set(label_list))
+    for tool in label_list:
+        box_list = []
+        for i in range(num_box):
+            if words[i*6]==tool:
+                box = []
+                for j in range(5):
+                    box.append(float(words[i*6+j+1]))
+                box_list.append(box)
+        new_box = weighedMean(box_list)
+#        new_box = directMean(box_list)
+        new_box[0] = tool
+#        print(new_box)
+        new_boxes.append(new_box)
+    return new_boxes
+
+def writeResult(result_file,new_boxes,currentAxis):
+    for box in new_boxes:
+        corrdinates = []
+        for content in box:
+            corrdinates.append(content)
+            result_file.write(" "+str(content))
+        x1, y1, x2, y2 = corrdinates[1], corrdinates[2], corrdinates[3], corrdinates[4]
+        plt.text(x1, y1, corrdinates[0], size=15, color='r')
+        rect = patches.Rectangle((x1, y1), x2 - x1, y2 - y1, fill=False, edgecolor='r', linewidth=2)
+        currentAxis.add_patch(rect)
+    result_file.write("\n")
 
 def isTool(img,net):
     transform = transforms.Compose([transforms.RandomHorizontalFlip(),
@@ -132,19 +185,22 @@ def drawBbox(data_root,fn,bboxes,save_root):
 
 def main(**kwargs):
     opt._parse(kwargs)
-    checkpoint = t.load('se_0314_all')
+    # checkpoint = t.load('se_0314_all')
+    # classifier = t.hub.load(
+    #         'moskomule/senet.pytorch',
+    #         'se_resnet50',
+    #         pretrained=True, )
+    checkpoint = t.load('res50_0314_all')
+    classifier = models.resnet50()
     num_classes = 8
-    # step = [112, 112]
-    classifier = t.hub.load(
-        'moskomule/senet.pytorch',
-        'se_resnet50',
-        pretrained=True, )
+    step = [112, 112]
+
     num_ftrs = classifier.fc.in_features
     classifier.fc = nn.Linear(num_ftrs, num_classes)
     classifier.load_state_dict(checkpoint['state_dict'])
     classifier.eval()
     classifier = classifier.cuda()
-    result_file = open('result0522.txt', 'w')
+    result_file = open('result0520_res.txt', 'w')
     save_root = './result/bbox/'
     makeDir()
 
@@ -153,7 +209,7 @@ def main(**kwargs):
     trainer.load('checkpoints/fasterrcnn_04081709_0.6626689194895079')
 
     data_root = '/home/lsm/testSamples700_new/'
-    test_file = 'GT707.txt'
+    test_file = 'GT.txt'
     test700 = Test700Dataset(data_root,test_file,opt)
     test_dataloader = data_.DataLoader(test700,
                                        batch_size=1,
@@ -176,6 +232,7 @@ def main(**kwargs):
         img = Image.open(data_root + fn[0]).convert("RGB")
         plt.imshow(img)
         currentAxis = plt.gca()
+        line = fn[0]
         for i in range(len(pred_bboxes_[0])):
             bbox = pred_bboxes_[0][i]
             score = pred_scores_[0][i]
@@ -185,15 +242,22 @@ def main(**kwargs):
             decision = decide2(classifier, canditate)
             if decision != 0:
                 # plt.text(x1, y1, toolNameList[decision]+" "+str(score), size=15, color='r')
-                rect = patches.Rectangle((x1, y1), x2 - x1, y2 - y1, fill=False, edgecolor='r', linewidth=2)
-                currentAxis.add_patch(rect)
-                result_file.write(' ' + toolNameList[decision] + ' ' + str(x1) + ' ' + str(y1) + ' ' + str(x2) + ' ' + str(y2))
+                line = line + ' ' + toolNameList[decision]+ ' ' + str(score) + ' ' + str(x1) + ' ' + str(y1) + ' ' + str(x2) + ' ' + str(y2)
+        words = line.split()
+        # result_file.write(words[0])
+        num_box = int((len(words) - 1) / 6)
+        if num_box > 0:
+            new_boxes = fuseBoxes(words[1:], num_box)
+            writeResult(result_file, new_boxes,currentAxis)
+
         rect = patches.Rectangle((gt_x1, gt_y1), gt_x2 - gt_x1, gt_y2 - gt_y1, fill=False, edgecolor='g', linewidth=2)
         currentAxis.add_patch(rect)
         plt.savefig(save_root + fn[0])
         plt.close()
-        result_file.write('\n')
     result_file.close()
+
+
+
 
 if __name__ == '__main__':
     main()
