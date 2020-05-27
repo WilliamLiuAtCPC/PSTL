@@ -1,0 +1,8 @@
+The pretrained model's checkpoint is uploaded to Baidu Yunpan:
+Á´½Ó£ºhttps://pan.baidu.com/s/1fS3gNWC1effFVty0pYW8AQ 
+ÌáÈ¡Âë£º4uhq
+
+
+There are two checkpoint file:
+1.ACWRes50¡ª¡ªthe pretrained parameter for ACW-Resnet50
+2.fasterrcnn_regressor¡ª¡ªthe pretrained parameter for regressor
