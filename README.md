@@ -1,6 +1,6 @@
 # PSTL
 
-<img src="https://github.com/WilliamLiuAtCPC/PSTL/blob/master/imgs/framework.png" width = "800" height = "500" div align=center>
+<img src="https://github.com/WilliamLiuAtCPC/PSTL/blob/master/imgs/framework.jpg" width = "800" height = "500" div align=center>
 
 This repository contains the code for the paper "Pseudo Supervised Surgical Tool Localization" .
 
